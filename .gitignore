@@ -24,7 +24,6 @@ public/css/main.css
 
 # API keys and secrets
 .env
-.env.config
 
 # Dependency directory
 node_modules

@@ -14,6 +14,7 @@ const flash = require('express-flash');
 const passport = require('passport');
 const multer = require('multer');
 const rateLimit = require('express-rate-limit');
+const { gravatar } = require('./models/prismaUser');
 
 const upload = multer({ dest: path.join(__dirname, 'uploads') });
 
@@ -77,6 +78,7 @@ weconnectServer.set('host', process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0');
 weconnectServer.set('port', process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 3000);
 weconnectServer.set('views', path.join(__dirname, 'views'));
 weconnectServer.set('view engine', 'pug');
+weconnectServer.locals.gravatar = gravatar;
 weconnectServer.set('trust proxy', numberOfProxies);
 weconnectServer.use(compression());
 weconnectServer.use(logger('dev'));

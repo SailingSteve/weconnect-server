@@ -3,7 +3,7 @@ FROM node:20-slim
 WORKDIR /starter
 ENV NODE_ENV development
 
-COPY .env.config /starter/.env.config
+COPY .env /starter/.env
 COPY . /starter
 
 RUN npm install pm2 -g

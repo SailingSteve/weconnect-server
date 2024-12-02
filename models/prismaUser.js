@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('@node-rs/bcrypt');
+const crypto = require('crypto');
 
 const prisma = new PrismaClient();
 
@@ -28,13 +29,12 @@ async function deleteOne (id) {
 }
 
 async function saveUser (user) {
+  const data = user;
   const updateUser = await prisma.user.update({
     where: {
       id: user.id,
     },
-    data: {
-      user,
-    },
+    data,
   });
   console.log(updateUser);
 }
@@ -87,6 +87,19 @@ async function comparePassword (user, candidatePassword, cb) {
   }
 }
 
+function gravatar (user, size) {
+  if (!size) {
+    // eslint-disable-next-line no-param-reassign
+    size = 200;
+  }
+  if (!user.email) {
+    return `https://gravatar.com/avatar/00000000000000000000000000000000?s=${size}&d=retro`;
+  }
+  const md5 = crypto.createHash('md5').update(user.email).digest('hex');
+  return `https://gravatar.com/avatar/${md5}?s=${size}&d=retro`;
+}
+
+
 module.exports = {
   comparePassword,
   createUser,
@@ -94,4 +107,5 @@ module.exports = {
   findUserById,
   findOneUser,
   saveUser,
+  gravatar,
 }; // Export the functions

@@ -59,7 +59,7 @@ Set the Theme as you would like, or have it "Sync with OS" (which is my preferen
 <br><br>
 
 ### About WebStorm plugins
-Plugins extend the capability of WebStorm and are worth exploring.  If it sounds good, we usually install them, unless the suggestions are for off-topic for what we are useing WebStorm for today.
+Plugins extend the capability of WebStorm and are worth exploring.  If it sounds good, we usually install them, unless the suggestions are far off-topic for what we are using WebStorm for today.
 Plugins suggested by WebStorm are safe to install, and easy to remove if you don't like them.
 <br><br>
 
@@ -91,7 +91,7 @@ v18.10.0
 stevepodell@Steves-MacBook-Air weconnect-server % 
 ```
 
-If your computer did not have Node installed with Homebrew, you will have to research how to upgrade your installation of Node.
+If Node was installed on your computer by some method other than Homebrew, you will have to research how to upgrade your installation of Node.
 
 If Node was installed with Homebrew or you have never installed Node, continue...
 
@@ -168,7 +168,7 @@ You can run this command as often as you want, and it will cause no harm.
 
 ### Make a live copy of .env-template to the .env file
 
-Right-click on the `.env-template` file in Webstorm, and paste it as `.env`
+Right-click on the `.env-template` file in Webstorm, and right-click paste it as `.env`
 
 <img src="docs/images/WebstormPasteConfig.png" alt="Alt Text" width="1200" >
 
@@ -231,24 +231,31 @@ Open the pull-down that initially says "Current File", and select Edit Configura
 <br>
 <img src="docs/images/RunConfigMenu.png" alt="Alt Text" width="400" style="border: 1px solid lightgrey;"><br>
 
+(We use [nodemon](https://www.npmjs.com/package/nodemon) during development, so that changes you make in your editor, are immediately transferred to the running version, without having to save and restart).
+
+In a terminal window, run `which nodemon`.  Then copy that path that results from the witch command.
+
+<img src="docs/images/WhichNodemon.png" alt="Alt Text" width="900" style="border: 1px solid lightgrey;"><br>
+
 In the Run/Debug Configurations dialog, press the "+" button and then select "Node.js"
-<img src="docs/images/SelectNodeFromList.png" alt="Alt Text" width="600" ><br>
+<br><img src="docs/images/SelectNodeFromList.png" alt="Alt Text" width="600" ><br>
 Then fill in the run configuration... 
-1) Enter `Start weconnect-server` in the Name field
-2) Enter `weconnect-server.js` in the File field.
-3) And press "OK" to save
-<br><img src="docs/images/NodeConfigFillIn.png" alt="Alt Text" width="600" >
+1) In the "Name" field, enter `Start weconnect-server`
+2) In the "Node Parameters" field, paste the path to nodemon.
+3) In the "File" field, enter `weconnect-server.js` .
+4) And press "OK" to save
+<br><img src="docs/images/NodeConfigFillIn.png" alt="Alt Text" width="900" >
 <br><br>
  
 ### Create a run config to start postgres
-Next create a run config to start postgres
+
 1) Add another "New Configuration", this time for a Shell Script (close to the bottom of the list of configurations on the right)
-2) In this "Run/Debug Configurations" dialog, add a name "Start Postgres"
+2) In this "Run/Debug Configurations" dialog Name field, enter "Start Postgres"
 3) In the "Script Path" paste in `/usr/local/opt/postgresql@14/bin/postgres` 
-in the "Script Options" paste in `-D /usr/local/var/postgresql@14`
-4) Remove any text in the "Interpreter Path" field.
-5) Make sure "Execute in the terminal" is checked
-6) Then press OK to save
+4) in the "Script Options" paste in `-D /usr/local/var/postgresql@14`
+5) Remove any text in the "Interpreter Path" field.
+6) Make sure "Execute in the terminal" is checked
+7) Then press OK to save
 
 <img src="docs/images/PostgresConfigFillIn.png" alt="Alt Text" width="600" >
 
@@ -269,7 +276,7 @@ Register the server as WeVoteServer
 
 <img src="docs/images/RegisterTheServer.png" alt="Alt Text" width="600" >
 
-And in the Connection tab set the Host name as localhost — also add your postgres Username and Password, then save
+And in the "Connection tab" set the "Host" name as localhost — also add your postgres "Username" and "Password", then Save
 
 <img src="docs/images/RegisterPgAdminHost.png" alt="Alt Text" width="600" >
 <br><br>
@@ -312,7 +319,8 @@ License
 The MIT License (MIT)
 
 Copyright (c) 2024 We Vote USA
-Forked from Hackathon Starter Copyright (c) 2024 Sahat Yalkabov
+
+Forked from [Hackathon Starter](https://github.com/sahat/hackathon-starter) Copyright (c) 2024 Sahat Yalkabov
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 

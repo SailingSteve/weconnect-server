@@ -4,6 +4,8 @@ block content
   .pb-2.mt-2.mb-4.border-bottom
     h3 Profile Information
 
+    pre #{JSON.stringify(user)}
+
   form(action='/account/profile', method='POST')
     input(type='hidden', name='_csrf', value=_csrf)
     .form-group.row
@@ -47,7 +49,7 @@ block content
     .form-group.row
       label.col-md-3.col-form-label.font-weight-bold.text-right Gravatar
       .col-sm-4.mb-2
-        img(src=user.gravatar(), class='profile', width='100', height='100')
+        img(src=gravatar(user, 200), class='profile', width='100', height='100')
     .form-group
       .offset-sm-3.col-md-7.pl-2
         button.btn.btn.btn-primary(type='submit')
