@@ -78,7 +78,7 @@ weconnectServer.set('host', process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0');
 weconnectServer.set('port', process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 3000);
 weconnectServer.set('views', path.join(__dirname, 'views'));
 weconnectServer.set('view engine', 'pug');
-weconnectServer.locals.gravatar = gravatar;
+weconnectServer.locals.gravatar = gravatar;       // for pug
 weconnectServer.set('trust proxy', numberOfProxies);
 weconnectServer.use(compression());
 weconnectServer.use(logger('dev'));
