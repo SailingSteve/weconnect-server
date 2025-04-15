@@ -2,6 +2,7 @@
 
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('@node-rs/bcrypt');
+const validator = require('validator');
 
 const prisma = new PrismaClient();
 
@@ -350,6 +351,64 @@ async function comparePassword (person, candidatePassword, cb) {
   }
 }
 
+/**
+ * Verify that emailOfficial or emailPreferred will be unique if inserted into the db,
+ * emailPersonal is guaranteed unique by SQL constraints
+ * @param email contains emailSubmitted and value
+ * @returns {Promise<boolean>}
+ * @param true if person can be inserted without creating non-unique emails in the column
+ */
+const manuallyConfirmEmailUniqueness = async (email) => {
+  const key = Object.keys(email)[0];
+  const value = email[key];
+  if (value.length === 0) {
+    return true;
+  }
+  // eslint-disable-next-line no-param-reassign
+  email[key] = validator.normalizeEmail(value, { gmail_remove_dots: false });
+  const personList = await findPersonListByParams(email, true);
+  // console.log('manuallyConfirmEmailUniqueness found a match for ', email);
+  if (personList.length === 1) {
+    if (personList.length > 1) {
+      console.error(`manuallyConfirmEmailUniqueness found more than one matching '${email.key}' rows, this is a data corruption error`);
+    }
+    return false;
+  }
+  return true;    // email will be unique if inserted in db
+};
+
+/**
+ * Allow users to login with emailOfficial or emailPreferred in addition to with emailPersonal (the unique key)
+ * @param emailSubmitted
+ * @returns {Promise<*>}
+ */
+const getUniqueKeyEmail = async (emailSubmitted) => {
+  const emailSubmittedCleaned = validator.normalizeEmail(emailSubmitted, { gmail_remove_dots: false });
+  let person = await findOnePerson({ emailPersonal: emailSubmittedCleaned });
+  if (Object.keys(person).length === 0) {
+    let personList = await findPersonListByParams({ emailOfficial: emailSubmittedCleaned }, true);
+    if (personList.length === 1) {
+      person = personList[0];
+      if (personList.length > 1) {
+        console.error(`getUniqueKeyEmail found more than one matching emailOfficial '${emailSubmittedCleaned}' rows, this is a data corruption error`);
+      }
+    } else if (Object.keys(person).length === 0) {
+      personList = await findPersonListByParams({ emailPreferred: emailSubmittedCleaned }, true);
+      if (personList.length === 1) {
+        person = personList[0];
+      }
+      if (personList.length > 1) {
+        console.error(`getUniqueKeyEmail found more than one matching emailPreferred '${emailSubmittedCleaned}' rows, this is a data corruption error`);
+      }
+    }
+  }
+  if (Object.keys(person).length > 1) {
+    return person.emailPersonal;
+  }
+  // They sent in an invalid email, so fall through
+  return emailSubmittedCleaned;
+};
+
 module.exports = {
   PERSON_AWAY_FIELDS_ACCEPTED,
   PERSON_FIELDS_ACCEPTED,
@@ -364,7 +423,9 @@ module.exports = {
   findPersonListByIdList,
   findPersonListByParams,
   getAccessRightsForPerson,
+  getUniqueKeyEmail,
   isoFutureDateDays,
+  manuallyConfirmEmailUniqueness,
   removeProtectedFieldsFromPerson,
   removeProtectedFieldsFromPersonAway,
   savePerson,

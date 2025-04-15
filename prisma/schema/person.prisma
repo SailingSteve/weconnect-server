@@ -2,13 +2,13 @@ model Person {
   id Int @id @default(autoincrement())
 
   birthdayMonthAndDay    String?
-  emailOfficial          String? // This can't be set to unique, since it would make it non-optional ... eg: the field blank on two rows
+  emailOfficial          String? // We have to manually enforce uniqueness, since prisma won't allow @unique with null values
   emailOfficialAlternate String?
   emailOfficialVerified  Boolean? // Email has been created and verified
   emailPersonal          String   @unique
   emailPersonalOkToShare Boolean? // Volunteer approves sharing personal email with other WeVote volunteers
   emailPersonalAlternate String?
-  emailPreferred         String?
+  emailPreferred         String?  // This must always be identical to emailOfficial or emailPersonal, or will be null -- We have to manually enforce uniqueness, since allow @unique with null values
   firstName              String
   firstNamePreferred     String?
   gender                 String?

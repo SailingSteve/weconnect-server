@@ -1,6 +1,14 @@
 // Calls script that populates the WeConnectDB from a spreadsheet that has been exported as csv
 // This is a non-destructive update, it will not overwrite existing teams or persons
 
+/* To find duplicate emailOfficial values (which are very much NOT allowed):
+SELECT "emailOfficial", COUNT(*) AS Freq
+FROM public."Person"
+GROUP BY "emailOfficial"
+ORDER BY Freq DESC
+*/
+
+
 const fs = require('fs');
 const execSync = require('child_process').execSync;
 const validator = require('validator');

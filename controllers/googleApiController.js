@@ -215,7 +215,7 @@ async function listDriveFiles (driveClient) {
 async function driveIdForDirectory (driveClient, directory) {
   let res;
   let fileId = '';
-  const query = `(mimeType='application/vnd.google-apps.folder' and name='${directory.trim()}')`;
+  const query = ''; //`(mimeType='application/vnd.google-apps.folder' and name='${directory.trim()}')`;
   // const query = `name='${directory.trim()}'`;
 
   try {
@@ -280,6 +280,17 @@ async function resetUserPassword (adminClient, primaryEmail, newPassword) {
   return ret;
 }
 
+async function getDataTransferApplicationResourceId (transferClient) {
+  try {
+    const serverResponse = await transferClient.applications.list();
+    const app = serverResponse.data.applications.find((appElement) => appElement.name === 'Drive and Docs');
+    return app.id;
+  } catch (e) {
+    console.log('ERROR transferClient.applications.list:', e);
+    return '';
+  }
+}
+
 /**
  * Transfer a user's ownership of files and folders to a new user
  * https://developers.google.com/workspace/admin/data-transfer/v1/transfer-data
@@ -304,25 +315,28 @@ async function transferDriveFilesAndFoldersOwnership (adminClient, transferClien
   // https://www.google.com/search?q=Google+Docs+and+Google+Drive+Application+ID
   // https://developers.google.com/workspace/explore?filter=&discoveryUrl=https%3A%2F%2Fadmin.googleapis.com%2F%24discovery%2Frest%3Fversion%3Ddatatransfer_v1&discoveryRef=resources.transfers.methods.insert&operationId=datatransfer.transfers.insert
 
+  const applicationId = await getDataTransferApplicationResourceId(transferClient);
+
   const requestBody = {
     kind: 'admin#datatransfer#DataTransfer',
     oldOwnerUserId,
     newOwnerUserId,
     applicationDataTransfers: [{
+      applicationId,
       // In some dart code from github, /// [customerId] - Immutable ID of the Google Workspace account. (is passed into the insert request)
       // applicationId: '103626277937150531336', // Service account, Unique ID:  jwt.keys.json ... '"You'll be provided with a Client ID and Client Secret. The Client ID is the application ID you need."
       // applicationId: '0B4Sb2OJjaaGOfk53TmxCV3F6bnpQaGVhNGdFdEZ5MU1FZ2o2bl9obEpIUlhMN2Y3cjlGTEk', // from the url
       // applicationId: '435070579839',  // https://developers.google.com/workspace/admin/data-transfer/v1/transfer-data
       // applicationId: '55656082996',  // Google Docs and Google Drive (Application ID: 55656082996), same for all api users The https://developers.google.com/workspace/admin/data-transfer/v1/parameters
-      applicationId: 1008827788717,  // The Client ID from https://console.cloud.google.com/welcome?pli=1&invt=AbugjA&project=weconnectserverapp
+      // applicationId: 1008827788717,  // The Client ID from https://console.cloud.google.com/welcome?pli=1&invt=AbugjA&project=weconnectserverapp
       // applicationId: 103626277937150531336,  // The Client ID from https://admin.google.com/ac/owl/domainwidedelegation
       applicationTransferParams: [
-        // {
-        //   key: 'RELEASE_RESOURCES',
-        //   value: [
-        //     'TRUE',
-        //   ],
-        // },
+        {
+          key: 'RELEASE_RESOURCES',
+          value: [
+            'TRUE',
+          ],
+        },
         {
           key: 'PRIVACY_LEVEL',
           value: [
@@ -340,6 +354,7 @@ async function transferDriveFilesAndFoldersOwnership (adminClient, transferClien
     console.log('ERROR driveDriveFilesAndFoldersOwnership:', e);
   }
   console.log('transferDriveFilesAndFoldersOwnership:', serverResponse);
+
   return serverResponse;
 }
 
@@ -368,6 +383,7 @@ exports.googleGetUserInfo = async (request, response) => {
       primaryEmail: user.emails[0].address,
       lastLoginTime: user.lastLoginTime,
       isMailboxSetup: user.isMailboxSetup,
+      thumbnailPhotoUrl: user.thumbnailPhotoUrl,
       // Less important
       creationTime: user.creationTime,
       changePasswordAtNextLogin: user.changePasswordAtNextLogin,
@@ -509,23 +525,22 @@ exports.googleRevokeDriveAccess = async (request, response) => {
     error = 'Unable to find drive folder';
   } else {
     try {
-      const ttt = await driveClient.permissions.list({
+      const pList = await driveClient.permissions.list({
         fileId: driveFolderId,  // <---this is ID of a shared drive, not a file
-        useDomainAdminAccess: true,
-        pageSize: 100,
       });
-      console.log(ttt);
-      const res = await driveClient.permissions.delete({
-        fileId: driveFolderId,
-        requestBody: {
-          type: 'user',         // Or 'group'
-          // role,                 // 'reader', 'commenter', 'writer', or 'owner'
-          emailAddress: primaryEmail,
-        },
-        fields: 'id',
+      console.log(pList);
+      const { data: { permissions } } = pList;
+      permissions.forEach(async (permission) => {
+        // const res = await driveClient.permissions.delete({
+        //   fileId: driveFolderId,
+        //   permissionId: permission.id,
+        // });
+        console.log('permission deleted: ', permission);
+        // console.log('permission deleted: ', res);
       });
-      console.error(res);
-      console.log(`File sharing removed for ${primaryEmail} (Permission ID: ${res.data.id})`);
+
+
+      // console.log(`File sharing removed for ${primaryEmail} (Permission ID: ${res.data.id})`);
       success = true;
     } catch (err) {
       error = `Error sharing file: ${err}`;

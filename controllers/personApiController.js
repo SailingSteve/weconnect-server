@@ -8,6 +8,8 @@ const {
   PERSON_FIELDS_ACCEPTED, PERSON_FIELDS_ACCEPTED_ADMIN,
   removeProtectedFieldsFromPerson, removeProtectedFieldsFromPersonAway,
   findOnePerson, findPersonById, savePerson, savePersonAway,
+  getUniqueKeyEmail,
+  manuallyConfirmEmailUniqueness,
 } = require('../models/personModel');
 
 const { extractVariablesToChangeFromIncomingParams } = require('./dataTransformationUtils');
@@ -276,11 +278,10 @@ exports.checkIsAdmin = async (req) => {
   // superusers allow access to grant admin rights, in a blank DB, or after a misconfiguration.
   const superUsers = ['dale.mcgrew@wevote.us', 'steve.podell@wevote.us']; // Feel free to revise
 
-  const ret = {
+  return {
     isAdmin: person.isAdmin || superUsers.includes(person.emailPersonal.trim()),
     person,
   };
-  return ret;
 };
 
 /**
@@ -310,7 +311,6 @@ exports.personSave = async (request, response) => {
   //   personChangeDict.password = await bcrypt.hash(personChangeDict.password, 10);
   // }
 
-  const { isAdmin: userIsAdmin } = await this.checkIsAdmin(request);
   const results = await getAllAccessRightsForPerson(request);
   const { accessRights, personIdsByTeam, teamAccessRights } = results;
   // console.log('personSave accessRights: ', accessRights);
@@ -343,7 +343,6 @@ exports.personSave = async (request, response) => {
     personCreated: false,
     personId: -1,
     personUpdated: false,
-    userIsAdmin,                    // Temp re-add 2/23/25
     status: '',
     success: true,
     updateErrors: [],
@@ -373,19 +372,29 @@ exports.personSave = async (request, response) => {
 
     if (shouldCreatePerson) {
       if (canAddPerson) {
-        const tempPassword = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-        personChangeDict.password = await bcrypt.hash(tempPassword, 10);
-        const person = await createPerson(personChangeDict);
-        personId = person.id;
-        // console.log('Created new person:', person);
-        jsonData.personCreated = true;
-        jsonData.personId = person.id;
-        jsonData.status += 'PERSON_CREATED ';
-        const modifiedPersonDict = removeProtectedFieldsFromPerson(person);
-        const personKeys = Object.keys(modifiedPersonDict);
-        const personValues = Object.values(modifiedPersonDict);
-        for (let i = 0; i < personKeys.length; i++) {
-          jsonData[personKeys[i]] = personValues[i];
+        const canInsertEmailOfficial = await manuallyConfirmEmailUniqueness({ emailOfficial: personChangeDict?.emailOfficial });
+        const canInsertEmailPreferred = await manuallyConfirmEmailUniqueness({ emailPreferred: personChangeDict?.emailPreferred });
+        if (!canInsertEmailOfficial || !canInsertEmailPreferred) {
+          jsonData.displayErrorMessage = true;
+          jsonData.personCreated = false;
+          jsonData.status += 'canAddPerson-NON_UNIQUE_EMAIL ';
+          jsonData.success = false;
+          jsonData.updateErrors.push('Email is not unique: ', !canInsertEmailOfficial ? 'emailOfficial' : 'emailPreferred');
+        } else {
+          const tempPassword = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+          personChangeDict.password = await bcrypt.hash(tempPassword, 10);
+          const person = await createPerson(personChangeDict);
+          personId = person.id;
+          // console.log('Created new person:', person);
+          jsonData.personCreated = true;
+          jsonData.personId = person.id;
+          jsonData.status += 'PERSON_CREATED ';
+          const modifiedPersonDict = removeProtectedFieldsFromPerson(person);
+          const personKeys = Object.keys(modifiedPersonDict);
+          const personValues = Object.values(modifiedPersonDict);
+          for (let i = 0; i < personKeys.length; i++) {
+            jsonData[personKeys[i]] = personValues[i];
+          }
         }
       } else {
         jsonData.displayErrorMessage = true;
@@ -456,12 +465,9 @@ exports.personSave = async (request, response) => {
 exports.signup = async (req, res) => {
   const validationErrors = [];
   if (!validator.isEmail(req.body.emailPersonal)) validationErrors.push({ msg: 'Please enter a valid primary email address.' });
-  // This is optional!   if (!validator.isEmail(req.body.emailOfficial)) validationErrors.push({ msg: 'Please enter a valid secondary email address.' });
   if (!validator.isLength(req.body.password, { min: 8 })) validationErrors.push({ msg: 'Password must be at least 8 characters long' });
   if (validator.escape(req.body.password) !== validator.escape(req.body.confirmPassword)) validationErrors.push({ msg: 'Passwords do not match' });
   if (validationErrors.length) {
-    // req.flash('errors', validationErrors);
-    // return res.redirect('/signup');
     return res.json({
       personCreated: false,
       errors: validationErrors,
@@ -483,6 +489,21 @@ exports.signup = async (req, res) => {
         signedIn: false,
       });
     }
+
+    const canInsertEmailOfficial = await manuallyConfirmEmailUniqueness({ emailOfficial: req.body.emailPersonal });
+    const canInsertEmailPreferred = await manuallyConfirmEmailUniqueness({ emailPreferred: req.body.emailPreferred });
+    if (!canInsertEmailOfficial || !canInsertEmailPreferred) {
+      const msg = `Email is not unique: ${!canInsertEmailOfficial ? 'emailOfficial' : 'emailPreferred'}`;
+      validationErrors.push({ msg });
+      return res.json({
+        personCreated: false,
+        errors: validationErrors,
+        personId: -1,
+        person: undefined,
+        signedIn: false,
+      });
+    }
+
     const encryptedPwd = await bcrypt.hash(req.body.password, 10);
     const person = await createPerson({
       firstName: req.body.firstName,
@@ -495,7 +516,6 @@ exports.signup = async (req, res) => {
     req.logIn(person, (err) => {
       if (err) {
         validationErrors.push({ msg: err });
-        // return next(err);
         return res.json({
           personCreated: false,
           errors: validationErrors,
@@ -514,7 +534,6 @@ exports.signup = async (req, res) => {
       });
     });
   } catch (err) {
-    // next(err);
     validationErrors.push({ msg: err });
     res.json({
       personCreated: false,
@@ -532,10 +551,10 @@ exports.signup = async (req, res) => {
  */
 exports.login = async (req, res, next) => {
   // console.log('test top in login, isAuthenticated: ', req.isAuthenticated());
-
-  req.body.email = validator.normalizeEmail(req.body.email, { gmail_remove_dots: false });
+  req.body.email = await getUniqueKeyEmail(req.body.email);
   req.body.personalEmail = req.body.email;
 
+  // eslint-disable-next-line consistent-return
   passport.authenticate('local', (err, authenticatedPerson, info) => {
     if (err) { return next(err); }
     if (!authenticatedPerson) {
@@ -607,8 +626,6 @@ exports.verifyEmailCode = async (req, res) => {
       emailVerified: false,
     });
   }
-
-  // return sendEmailValidationCode(person);
 };
 
 /**
@@ -680,21 +697,13 @@ exports.getAuth = async (req, res) => {
   // console.log('getAuth personId from sessionId', personId, req.sessionID);
   const person = personId > 0 ? await findPersonById(personId) : undefined;
   const emailVerified = person && personId > 0 && person.emailVerified;
-  const { isAdmin } = await this.checkIsAdmin(req);
-  const loggedInPersonIsAdmin = personId > 0 && isAdmin;
   const accessRights = getAccessRightsForPerson(person);
   const teamAccessRights = await getTeamAccessRightsForPerson(person);
-  // Feb 2025 See the evolving permissions plan: https://docs.google.com/spreadsheets/d/1xKRFzOb7MV8aM-O4s1_IBtu2NYgTM67vEPhoKxupkCc/edit?gid=257349954#gid=257349954
-  // Replacing checkIsAdmin with /controllers/personController.js getAllAccessRightsForPerson and personCanSeeOrDo
-  // const loggedInPersonIsAdmin = await checkIsAdmin(req);
-  // console.log('test top in getAuth isAuthenticated: ', isAuthenticated, personId);
-  // Feb 23, 2025, I put some of this stuff back in temporarily, so my client side changes will continue to function
 
   return res.json({
     emailVerified,
     accessRights,
     isAuthenticated,
-    loggedInPersonIsAdmin,        // Temp re-add 2/23/25
     person,
     personId,
     teamAccessRights,
