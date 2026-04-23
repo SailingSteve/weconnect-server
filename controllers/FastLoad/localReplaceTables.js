@@ -22,7 +22,7 @@ const prisma = new PrismaClient();
 const isLocal = async (req) => {
   try {
     const { stdout } = await exec('ver');
-    if (stdout.contains('Microsoft Windows')) {
+    if (stdout.includes('Microsoft Windows')) {
       console.log(`FastLoad local: is running on ${stdout}`);
       return true;
     }

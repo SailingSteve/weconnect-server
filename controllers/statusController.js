@@ -77,7 +77,7 @@ exports.getStatus = async (req, res) => {
   } catch (error) {
     try {
       const { stdout } = await exec('ver');
-      if (stdout.contains('Microsoft Windows')) {
+      if (stdout.includes('Microsoft Windows')('Microsoft Windows')) {
         stats.uname = stdout.trim();
         return true;
       }
